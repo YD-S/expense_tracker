@@ -1,0 +1,13 @@
+FROM node:20-alpine AS build
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY . .
+RUN npm run build
+
+# Since you're using your existing web server, 
+# we'll just create a simple output stage
+FROM scratch
+COPY --from=build /app/dist /dist
