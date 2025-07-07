@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,7 +16,7 @@ import org.springframework.stereotype.Service;
 public class UserDetailsServiceImpl implements UserDetailsService {
 
     private final UserRepository userRepository;
-    private final UserSerializer userSerializer;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -41,12 +42,14 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         Users user = Users.builder()
                 .username(request.username())
                 .email(request.email())
-                .password(request.password())
+                .password(passwordEncoder.encode(request.password()))
                 .build();
-
-        System.out.println("Saving user: " + user.getUsername() + ", email: " + user.getEmail());
 
         Users savedUser = userRepository.save(user);
         return UserSerializer.mapToUserDetails(savedUser);
+    }
+
+    public boolean isPasswordValid(String password, String password1) {
+        return passwordEncoder.matches(password, password1);
     }
 }

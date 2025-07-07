@@ -18,6 +18,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -33,7 +34,7 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
-    private final UserDetailsServiceImpl userDetailsService;
+    private final UserDetailsService userDetailsService;
 
     @Operation(
             summary = "User login",
@@ -61,13 +62,15 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody AuthRequest request) {
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            request.username(),
-                            request.password()
-                    )
+                    new UsernamePasswordAuthenticationToken(request.username(), request.password())
             );
 
             UserDetails userDetails = userDetailsService.loadUserByUsername(request.username());
+            if (userDetails == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "User not found"));
+            }
+            // Remove isPasswordValid check, as authenticationManager already checks password
             JwtService.TokenPair tokens = jwtService.generateTokenPair(userDetails);
 
             return ResponseEntity.ok(new AuthResponse(
@@ -77,7 +80,7 @@ public class AuthController {
 
         } catch (AuthenticationException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Invalid email or password"));
+                    .body(Map.of("error", "Invalid username or password"));
 
         } catch (DataAccessException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -111,10 +114,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody AuthRequest request) {
         try {
-            UserDetails userDetails = userDetailsService.saveUser(request);
-
-
-
+            UserDetails userDetails = ((com.expensetracker.service.UserDetailsServiceImpl) userDetailsService).saveUser(request);
             JwtService.TokenPair tokens = jwtService.generateTokenPair(userDetails);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(new AuthResponse(
@@ -123,7 +123,7 @@ public class AuthController {
             ));
         } catch (DataAccessException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Database error occurred"));
+                    .body(Map.of("error", "User already exists"));
 
         } catch (Exception e) {
             System.err.println("Registration error: " + e.getMessage());
