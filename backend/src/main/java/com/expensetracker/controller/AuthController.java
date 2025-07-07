@@ -17,7 +17,6 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -58,12 +57,12 @@ public class AuthController {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            request.email(),
+                            request.username(),
                             request.password()
                     )
             );
 
-            UserDetails userDetails = userDetailsService.loadUserByUsername(request.email());
+            UserDetails userDetails = userDetailsService.loadUserByUsername(request.username());
             JwtService.TokenPair tokens = jwtService.generateTokenPair(userDetails);
 
             return ResponseEntity.ok(new AuthResponse(
@@ -88,17 +87,23 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refreshToken(@RequestBody RefreshRequest request) {
-        if (!jwtService.isRefreshTokenValid(request.refreshToken())) {
-            throw new BadCredentialsException("Invalid refresh token");
+        try {
+                if (!jwtService.isRefreshTokenValid(request.refreshToken())) {
+                    throw new BadCredentialsException("Invalid refresh token");
+                }
+
+                String username = jwtService.extractUsername(request.refreshToken());
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                JwtService.TokenPair tokens = jwtService.generateTokenPair(userDetails);
+
+                return ResponseEntity.ok(new AuthResponse(
+                        tokens.accessToken(),
+                        tokens.refreshToken()
+                ));
+            } catch ( Exception e) {
+                System.err.println("Token refresh error: " + e.getMessage());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new AuthResponse(null, null));
+            }
         }
-
-        String username = jwtService.extractUsername(request.refreshToken());
-        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-        JwtService.TokenPair tokens = jwtService.generateTokenPair(userDetails);
-
-        return ResponseEntity.ok(new AuthResponse(
-                tokens.accessToken(),
-                tokens.refreshToken()
-        ));
-    }
 }

@@ -1,6 +1,5 @@
 package com.expensetracker.auth;
 
-import com.expensetracker.model.User;
 import com.expensetracker.repository.UserRepository;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -11,7 +10,6 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
-import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +30,7 @@ public class JwtService {
         String accessToken = buildToken(userDetails, accessTokenExpiration);
         String refreshToken = buildToken(userDetails, refreshTokenExpiration);
 
-        userRepository.findByEmail(userDetails.getUsername())
+        userRepository.findByUsername(userDetails.getUsername())
                 .ifPresent(user -> {
                     user.setRefreshToken(refreshToken);
                     userRepository.save(user);
@@ -53,7 +51,7 @@ public class JwtService {
     public boolean isRefreshTokenValid(String refreshToken) {
         try {
             String username = extractUsername(refreshToken);
-            return userRepository.findByEmail(username)
+            return userRepository.findByUsername(username)
                     .map(user -> refreshToken.equals(user.getRefreshToken()))
                     .orElse(false);
         } catch (JwtException e) {
