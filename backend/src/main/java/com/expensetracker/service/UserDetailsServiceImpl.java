@@ -1,6 +1,6 @@
 package com.expensetracker.service;
 
-import com.expensetracker.model.User;
+import com.expensetracker.model.Users;
 import com.expensetracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -16,10 +16,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
+        Users user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        return (UserDetails) User.builder()
+        return (UserDetails) Users.builder()
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .password(user.getPassword())

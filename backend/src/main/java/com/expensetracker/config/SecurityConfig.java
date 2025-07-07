@@ -52,7 +52,8 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/dev/docs/**",
                                 "/dev/api-docs/**",
-                                "/dev/swagger-ui/**"
+                                "/dev/swagger-ui/**",
+                                "/actuator/**"
                         ).permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()
