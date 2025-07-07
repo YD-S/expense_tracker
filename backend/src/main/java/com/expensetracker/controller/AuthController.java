@@ -8,6 +8,7 @@ import com.expensetracker.service.UserDetailsServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Tag(
+        name = "Authentication",
+        description = "Endpoints for user authentication, registration and token management"
+)
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -85,6 +90,66 @@ public class AuthController {
         }
     }
 
+    @Operation(
+            summary = "User registration",
+            description = "Register a new user and return JWT tokens",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Successful registration", content = @Content(
+                            mediaType = "application/json",
+                            schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = AuthResponse.class)
+                    )),
+                    @ApiResponse(responseCode = "409", description = "User already exists", content = @Content(
+                            mediaType = "application/json",
+                            schema = @io.swagger.v3.oas.annotations.media.Schema(type = "object", example = "{\"error\": \"User already exists\"}")
+                    )),
+                    @ApiResponse(responseCode = "500", description = "Registration service temporarily unavailable", content = @Content(
+                            mediaType = "application/json",
+                            schema = @io.swagger.v3.oas.annotations.media.Schema(type = "object", example = "{\"error\": \"Registration service temporarily unavailable\"}")
+                    ))
+            }
+    )
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody AuthRequest request) {
+        try {
+            UserDetails userDetails = userDetailsService.saveUser(request);
+
+
+
+            JwtService.TokenPair tokens = jwtService.generateTokenPair(userDetails);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(new AuthResponse(
+                    tokens.accessToken(),
+                    tokens.refreshToken()
+            ));
+        } catch (DataAccessException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Database error occurred"));
+
+        } catch (Exception e) {
+            System.err.println("Registration error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Registration service temporarily unavailable"));
+        }
+    }
+
+    @Operation(
+            summary = "Refresh JWT token",
+            description = "Refresh access token using a valid refresh token",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Token refreshed successfully", content = @Content(
+                            mediaType = "application/json",
+                            schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = AuthResponse.class)
+                    )),
+                    @ApiResponse(responseCode = "401", description = "Invalid refresh token", content = @Content(
+                            mediaType = "application/json",
+                            schema = @io.swagger.v3.oas.annotations.media.Schema(type = "object", example = "{\"error\": \"Invalid refresh token\"}")
+                    )),
+                    @ApiResponse(responseCode = "500", description = "Token refresh service temporarily unavailable", content = @Content(
+                            mediaType = "application/json",
+                            schema = @io.swagger.v3.oas.annotations.media.Schema(type = "object", example = "{\"error\": \"Token refresh service temporarily unavailable\"}")
+                    ))
+            }
+    )
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refreshToken(@RequestBody RefreshRequest request) {
         try {

@@ -1,12 +1,15 @@
 package com.expensetracker.auth;
 
 import com.expensetracker.service.UserDetailsServiceImpl;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Bean;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+@Slf4j
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
@@ -33,7 +37,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         final String jwt = authHeader.substring(7);
-        final String username = jwtService.extractUsername(jwt);
+        String username = null;
+
+        try {
+            username = jwtService.extractUsername(jwt);
+        } catch (SignatureException e) {
+            log.debug("JWT signature validation failed: {}", e.getMessage());
+        } catch (MalformedJwtException e) {
+            log.debug("JWT is malformed: {}", e.getMessage());
+        } catch (ExpiredJwtException e) {
+            log.debug("JWT is expired: {}", e.getMessage());
+        } catch (Exception e) {
+            log.debug("JWT parsing failed: {}", e.getMessage());
+        }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
