@@ -122,6 +122,32 @@ expense-tracker/
 └── docker-compose-dev.yml
 ```
 
+# 🏦 Nordigen Bank Integration
+
+![Nordigen](https://img.shields.io/badge/Nordigen-OpenBanking-blue)
+![Coverage](https://img.shields.io/badge/Coverage-50+_Spanish_Banks-green)
+
+Seamless integration with Spanish banks through Nordigen's PSD2-compliant API.
+
+## Key Features
+
+- **Normalized data** from 50+ Spanish banks
+- **Single integration** for all supported banks
+- **Automatic transaction** imports
+- **Account balance** synchronization
+- **90 days** of transaction history
+
+## Supported Spanish Banks
+
+| Major Banks | Digital Banks | Regional Banks |
+|------------|--------------|----------------|
+| Santander | Openbank | Unicaja |
+| BBVA | EVO Banco | Ibercaja |
+| CaixaBank | ING España | Kutxabank |
+| Bankinter | N26 | Abanca |
+| Sabadell | Revolut | Cajamar |
+
+
 # 📈 Built With
 
 - Backend: Spring Boot 3, Hibernate, JWT

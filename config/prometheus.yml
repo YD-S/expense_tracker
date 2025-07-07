@@ -9,5 +9,4 @@ scrape_configs:
     static_configs:
       - targets: ['backend:8080'] # For Docker Desktop
         labels:
-          application: 'expense-tracker'
           environment: 'dev'
