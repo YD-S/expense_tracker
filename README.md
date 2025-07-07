@@ -125,9 +125,9 @@ expense-tracker/
 # 📈 Built With
 
 - Backend: Spring Boot 3, Hibernate, JWT
--Frontend: React, Vite, Chart.js
--Database: PostgreSQL 16
--Infra: Docker, HikariCP
+- Frontend: React, Vite, Chart.js
+- Database: PostgreSQL 16
+- Infra: Docker, HikariCP
 
 # 🤝 Contributing
 1. Fork the project
