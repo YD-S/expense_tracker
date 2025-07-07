@@ -4,7 +4,9 @@ import com.expensetracker.auth.JwtService;
 import com.expensetracker.dto.AuthRequest;
 import com.expensetracker.dto.AuthResponse;
 import com.expensetracker.dto.RefreshRequest;
-import com.expensetracker.service.UserDetailsServiceImpl;
+import com.expensetracker.model.Users;
+import com.expensetracker.repository.UserRepository;
+import com.expensetracker.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -13,12 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -32,9 +30,9 @@ import java.util.Map;
 )
 public class AuthController {
 
-    private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
+    private final UserRepository userRepository;
+    private final AuthService authService;
 
     @Operation(
             summary = "User login",
@@ -61,23 +59,8 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest request) {
         try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.username(), request.password())
-            );
-
-            UserDetails userDetails = userDetailsService.loadUserByUsername(request.username());
-            if (userDetails == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("error", "User not found"));
-            }
-            // Remove isPasswordValid check, as authenticationManager already checks password
-            JwtService.TokenPair tokens = jwtService.generateTokenPair(userDetails);
-
-            return ResponseEntity.ok(new AuthResponse(
-                    tokens.accessToken(),
-                    tokens.refreshToken()
-            ));
-
+            AuthResponse response = authService.login(request);
+            return ResponseEntity.ok(response);
         } catch (AuthenticationException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Invalid username or password"));
@@ -114,16 +97,11 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody AuthRequest request) {
         try {
-            UserDetails userDetails = ((com.expensetracker.service.UserDetailsServiceImpl) userDetailsService).saveUser(request);
-            JwtService.TokenPair tokens = jwtService.generateTokenPair(userDetails);
-
-            return ResponseEntity.status(HttpStatus.CREATED).body(new AuthResponse(
-                    tokens.accessToken(),
-                    tokens.refreshToken()
-            ));
-        } catch (DataAccessException e) {
+            AuthResponse response = authService.register(request);
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
+        } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "User already exists"));
+                    .body(Map.of("error", "Username or Email already exists"));
 
         } catch (Exception e) {
             System.err.println("Registration error: " + e.getMessage());
@@ -158,8 +136,9 @@ public class AuthController {
                 }
 
                 String username = jwtService.extractUsername(request.refreshToken());
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                JwtService.TokenPair tokens = jwtService.generateTokenPair(userDetails);
+                Users user = userRepository.findByUsername(username)
+                        .orElseThrow(() -> new BadCredentialsException("User not found"));
+                JwtService.TokenPair tokens = jwtService.generateTokenPair(user);
 
                 return ResponseEntity.ok(new AuthResponse(
                         tokens.accessToken(),

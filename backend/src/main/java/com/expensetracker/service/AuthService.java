@@ -1,0 +1,61 @@
+package com.expensetracker.service;
+
+import com.expensetracker.auth.JwtService;
+import com.expensetracker.dto.AuthRequest;
+import com.expensetracker.dto.AuthResponse;
+import com.expensetracker.model.Users;
+import com.expensetracker.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+
+@Service
+@RequiredArgsConstructor
+public class AuthService {
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final AuthenticationManager authManager;
+
+    public AuthResponse login(AuthRequest request) {
+        Authentication authentication = authManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.username(), request.password())
+        );
+        if (authentication == null) {
+            throw new RuntimeException("Invalid credentials");
+        }
+        Users user = userRepository.findByUsername(request.username())
+                .orElseThrow(() -> new BadCredentialsException("User not found"));
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw new RuntimeException("Invalid credentials");
+        }
+        JwtService.TokenPair tokens = jwtService.generateTokenPair(user);
+
+        return new AuthResponse(
+                tokens.accessToken(),
+                tokens.refreshToken()
+        );
+    }
+
+    public AuthResponse register(AuthRequest request) {
+        if (userRepository.existsByUsername(request.username()) || userRepository.existsByEmail(request.email())) {
+            throw new RuntimeException("Username or Email already exists");
+        }
+        Users user = Users.builder()
+                .username(request.username())
+                .email(request.email())
+                .password(passwordEncoder.encode(request.password()))
+                .build();
+        userRepository.save(user);
+
+        return new AuthResponse(
+                jwtService.generateTokenPair(user).accessToken(),
+                jwtService.generateTokenPair(user).refreshToken()
+        );
+    }
+}

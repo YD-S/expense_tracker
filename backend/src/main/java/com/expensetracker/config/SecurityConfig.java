@@ -3,6 +3,7 @@ package com.expensetracker.config;
 import com.expensetracker.auth.JwtAuthEntryPoint;
 import com.expensetracker.auth.JwtAuthenticationFilter;
 import com.expensetracker.auth.JwtService;
+import com.expensetracker.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,10 +27,11 @@ public class SecurityConfig {
     private final JwtAuthEntryPoint authEntryPoint;
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private  final UserRepository userRepository;
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtService, userDetailsService);
+        return new JwtAuthenticationFilter(jwtService, userDetailsService, userRepository);
     }
 
 
