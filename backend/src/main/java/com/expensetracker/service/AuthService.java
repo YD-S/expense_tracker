@@ -42,7 +42,7 @@ public class AuthService {
         );
     }
 
-    public AuthResponse register(AuthRequest request) {
+    public void register(AuthRequest request) {
         if (userRepository.existsByUsername(request.username()) || userRepository.existsByEmail(request.email())) {
             throw new RuntimeException("Username or Email already exists");
         }
@@ -52,10 +52,5 @@ public class AuthService {
                 .password(passwordEncoder.encode(request.password()))
                 .build();
         userRepository.save(user);
-
-        return new AuthResponse(
-                jwtService.generateTokenPair(user).accessToken(),
-                jwtService.generateTokenPair(user).refreshToken()
-        );
     }
 }

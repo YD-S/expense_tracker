@@ -97,8 +97,8 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody AuthRequest request) {
         try {
-            AuthResponse response = authService.register(request);
-            return new ResponseEntity<>(response, HttpStatus.CREATED);
+            authService.register(request);
+            return new ResponseEntity<>(HttpStatus.CREATED);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Username or Email already exists"));
