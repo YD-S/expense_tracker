@@ -48,11 +48,12 @@ services:
   prometheus:
     image: prom/prometheus
     ports: ["9090:9090"]
+    user: "0"
     depends_on:
       - backend
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
+      - ./prometheus_data:/prometheus
     command: 
       - '--storage.tsdb.path=/prometheus'
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -63,10 +64,11 @@ services:
 
   grafana:
     image: grafana/grafana
+    user: "0"
     depends_on:
       - prometheus
     volumes:
-      - grafana_data:/var/lib/grafana
+      - ./grafana_data:/var/lib/grafana
       - ./config/provisioning:/etc/grafana/provisioning
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
@@ -74,6 +76,3 @@ services:
     networks:
       - expense_network
 
-volumes:
-  prometheus_data:
-  grafana_data:
