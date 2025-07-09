@@ -1,0 +1,176 @@
+name: Handle PRs merged into master
+
+on:
+  pull_request:
+    branches: [main, master]
+    types:
+      - closed
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  handle-merge:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Extract source and base branches
+        id: branchinfo
+        run: |
+          echo "SOURCE_BRANCH=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+          echo "BASE_BRANCH=${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
+          echo "Processing merged PR from ${{ github.event.pull_request.head.ref }} to ${{ github.event.pull_request.base.ref }}"
+
+      # Frontend version bump
+      - name: Handle frontend next branch
+        if: startsWith(env.SOURCE_BRANCH, 'next-frontend')
+        id: frontend_version_bump
+        run: |
+          echo "Processing frontend branch $SOURCE_BRANCH"
+          
+          if [ ! -f "frontend/package.json" ]; then
+            echo "Error: frontend/package.json not found"
+            exit 1
+          fi
+          
+          CURRENT_VERSION=$(jq -r '.version' frontend/package.json)
+          echo "Current frontend version: $CURRENT_VERSION"
+          
+          VERSION_CLEAN=${CURRENT_VERSION/-SNAPSHOT/}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_CLEAN"
+          MINOR=$((MINOR + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.0"
+          NEXT_BRANCH="next-frontend-v${NEW_VERSION}"
+
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "NEXT_BRANCH=$NEXT_BRANCH" >> $GITHUB_ENV
+          echo "COMPONENT=frontend" >> $GITHUB_ENV
+
+          echo "Planned new version: $NEW_VERSION"
+          echo "Planned new branch: $NEXT_BRANCH"
+
+      # Backend version bump
+      - name: Handle backend next branch
+        if: startsWith(env.SOURCE_BRANCH, 'next-backend')
+        id: backend_version_bump
+        run: |
+          echo "Processing backend branch $SOURCE_BRANCH"
+
+          if [ ! -f "backend/pom.xml" ]; then
+            echo "Error: backend/pom.xml not found"
+            exit 1
+          fi
+
+          VERSION=$(awk '
+            /<\/parent>/ { found_parent = 1; next }
+            found_parent && /<version>/ {
+              line = $0
+              sub(/.*<version>/, "", line)
+              sub(/<\/version>.*/, "", line)
+              print line
+              exit
+            }
+          ' backend/pom.xml)
+
+          if [ -z "$VERSION" ]; then
+            echo "❌ Failed to extract backend version"
+            exit 1
+          fi
+
+          echo "Current backend version: $VERSION"
+
+          VERSION_CLEAN=${VERSION/-SNAPSHOT/}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_CLEAN"
+          MINOR=$((MINOR + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.0-SNAPSHOT"
+          NEXT_BRANCH="next-backend-v${MAJOR}.${MINOR}.0"
+
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "NEXT_BRANCH=$NEXT_BRANCH" >> $GITHUB_ENV
+          echo "COMPONENT=backend" >> $GITHUB_ENV
+
+          echo "Planned new version: $NEW_VERSION"
+          echo "Planned new branch: $NEXT_BRANCH"
+
+      # Update frontend version
+      - name: Update frontend version
+        if: startsWith(env.SOURCE_BRANCH, 'next-frontend')
+        run: |
+          echo "Updating frontend/package.json to version $NEW_VERSION"
+          jq --arg v "$NEW_VERSION" '.version = $v' frontend/package.json > frontend/tmp.json
+          mv frontend/tmp.json frontend/package.json
+
+          UPDATED_VERSION=$(jq -r '.version' frontend/package.json)
+          echo "Verified updated version: $UPDATED_VERSION"
+
+      # Update backend version
+      - name: Update backend version
+        if: startsWith(env.SOURCE_BRANCH, 'next-backend')
+        run: |
+          echo "Updating backend/pom.xml to version $NEW_VERSION"
+
+          awk -v new_version="$NEW_VERSION" '
+            /<\/parent>/ { found = 1; print; next }
+            found && /<version>/ && !done {
+              sub(/<version>.*<\/version>/, "<version>" new_version "</version>")
+              done = 1
+            }
+            { print }
+          ' backend/pom.xml > backend/pom.tmp && mv backend/pom.tmp backend/pom.xml
+
+          echo "✅ Updated backend version:"
+          awk '
+            /<\/parent>/ { found_parent = 1; next }
+            found_parent && /<version>/ {
+              line = $0
+              sub(/.*<version>/, "", line)
+              sub(/<\/version>.*/, "", line)
+              print line
+              exit
+            }
+          ' backend/pom.xml
+
+      # Create draft PR from new next branch
+      - name: Create draft PR from new next branch to main
+        if: startsWith(env.SOURCE_BRANCH, 'next-frontend') || startsWith(env.SOURCE_BRANCH, 'next-backend')
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore: bump ${{ env.COMPONENT }} version to ${{ env.NEW_VERSION }}"
+          title: "Prepare ${{ env.COMPONENT }} release ${{ env.NEW_VERSION }}"
+          body: |
+            This PR tracks the upcoming ${{ env.COMPONENT }} release version **${{ env.NEW_VERSION }}**.
+            **Changes:**
+            - Bumped ${{ env.COMPONENT }} version to ${{ env.NEW_VERSION }}
+            - Ready for development of next release
+            All development should target this branch until release.
+          branch: ${{ env.NEXT_BRANCH }}
+          draft: true
+          base: main
+
+      # Delete old next branch
+      - name: Delete old next branch
+        if: startsWith(env.SOURCE_BRANCH, 'next-frontend') || startsWith(env.SOURCE_BRANCH, 'next-backend')
+        run: |
+          echo "Deleting old next branch: $SOURCE_BRANCH"
+          git push origin --delete "$SOURCE_BRANCH" || echo "Branch $SOURCE_BRANCH does not exist or could not be deleted (this is normal)."
+
+      # Summary
+      - name: Summary
+        if: startsWith(env.SOURCE_BRANCH, 'next-frontend') || startsWith(env.SOURCE_BRANCH, 'next-backend')
+        run: |
+          echo "✅ Successfully processed $COMPONENT release workflow"
+          echo "🔄 Merged branch: $SOURCE_BRANCH"
+          echo "🆕 Created branch: $NEXT_BRANCH"
+          echo "📦 New version: $NEW_VERSION"
+          echo "📋 Created draft PR for next release"
