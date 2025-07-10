@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface ExpenseRepository extends JpaRepository<Expense, Long> {
-    Boolean existsByNameAndUser(String name, Users user);
+    Boolean existsByDescriptionAndUser(String description, Users user);
     List<Expense> findAllByUserAndCategory(Users user, Category category);
     List<Expense> findAllByUserId(Long userId);
 }
