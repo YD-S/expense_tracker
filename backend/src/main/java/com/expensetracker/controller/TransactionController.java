@@ -7,6 +7,10 @@ import com.expensetracker.model.Users;
 import com.expensetracker.repository.UserRepository;
 import com.expensetracker.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -34,13 +38,21 @@ public class TransactionController {
             summary = "Sync Transactions",
             description = "Fetch and save transactions for the authenticated user",
             responses = {
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    @ApiResponse(
                             responseCode = "200",
-                            description = "Transactions synced successfully"
+                            description = "Transactions synced successfully",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(example = "{\"message\":\"Transactions synced successfully\",\"transactionCount\":10,\"transactions\":[{...}]}")
+                            )
                     ),
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    @ApiResponse(
                             responseCode = "500",
-                            description = "Failed to sync transactions"
+                            description = "Failed to sync transactions",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(example = "{\"error\":\"Failed to sync transactions\"}")
+                            )
                     )
             }
     )
@@ -72,13 +84,21 @@ public class TransactionController {
             summary = "Get User Transactions",
             description = "Retrieve all transactions for the authenticated user",
             responses = {
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    @ApiResponse(
                             responseCode = "200",
-                            description = "Successfully retrieved transactions"
+                            description = "Successfully retrieved transactions",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    array = @ArraySchema(schema = @Schema(implementation = TransactionDto.class))
+                            )
                     ),
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    @ApiResponse(
                             responseCode = "500",
-                            description = "Failed to retrieve transactions"
+                            description = "Failed to retrieve transactions",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(type = "object", example = "{\"error\": \"Failed to retrieve transactions\"}")
+                            )
                     )
             }
     )
@@ -111,13 +131,21 @@ public class TransactionController {
             summary = "Get User Transactions by Date Range",
             description = "Retrieve transactions for the authenticated user within a specified date range",
             responses = {
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    @ApiResponse(
                             responseCode = "200",
-                            description = "Successfully retrieved transactions"
+                            description = "Successfully retrieved transactions",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    array = @ArraySchema(schema = @Schema(implementation = TransactionDto.class))
+                            )
                     ),
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    @ApiResponse(
                             responseCode = "500",
-                            description = "Failed to retrieve transactions"
+                            description = "Failed to retrieve transactions",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(type = "object", example = "{\"error\": \"Failed to retrieve transactions\"}")
+                            )
                     )
             }
     )
@@ -148,13 +176,21 @@ public class TransactionController {
             summary = "Get User Transactions by Type",
             description = "Retrieve transactions for the authenticated user filtered by transaction type",
             responses = {
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    @ApiResponse(
                             responseCode = "200",
-                            description = "Successfully retrieved transactions"
+                            description = "Successfully retrieved transactions",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    array = @ArraySchema(schema = @Schema(implementation = TransactionDto.class))
+                            )
                     ),
-                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    @ApiResponse(
                             responseCode = "500",
-                            description = "Failed to retrieve transactions"
+                            description = "Failed to retrieve transactions",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(type = "object", example = "{\"error\": \"Failed to retrieve transactions\"}")
+                            )
                     )
             }
     )
