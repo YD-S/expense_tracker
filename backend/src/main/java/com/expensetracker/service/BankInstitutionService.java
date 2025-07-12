@@ -1,6 +1,7 @@
 package com.expensetracker.service;
 
 import com.expensetracker.dto.BankDTO;
+import com.expensetracker.model.BankConnection;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -12,6 +13,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -47,5 +49,18 @@ public class BankInstitutionService {
         } catch (HttpClientErrorException e) {
             throw new RuntimeException("Failed to fetch bank details: " + e.getMessage());
         }
+    }
+
+    public Map<String, Object> getTransactions(List<BankConnection> connections){
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(authService.getAccessToken());
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "https://bankaccountdata.gocardless.com/api/v2/transactions/",
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                Map.class);
+
+        return response.getBody();
     }
 }

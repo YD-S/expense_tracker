@@ -26,7 +26,11 @@ public class BankConnection {
     private String requisitionId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(
+            name = "user_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_bank_connection_user")
+    )
     private Users user;
 
     @Column(name = "institution_id", nullable = false)
@@ -34,6 +38,9 @@ public class BankConnection {
 
     @Column(name = "institution_name", nullable = false)
     private String status; // "CREATED", "LINKED", "ERROR"
+
+    @Column(name = "reference", nullable = false)
+    private String reference;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

@@ -42,7 +42,6 @@ public class BankController {
             @AuthenticationPrincipal Object principal) {
 
         try {
-            // Resolve user safely
             String username = principal instanceof UserDetails
                     ? ((UserDetails) principal).getUsername()
                     : principal.toString();
@@ -50,24 +49,21 @@ public class BankController {
             Users user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new UsernameNotFoundException(username));
 
-            // Create connection record first
+            String reference = generateReference(user);
+
+            Map<String, String> connectionInfo = requisitionService.createRequisition(
+                    bankId,
+                    reference
+            );
+
             BankConnection connection = BankConnection.builder()
                     .user(user)
                     .institutionId(bankId)
-                    .requisitionId(generateRequisitionId(user))
-                    .status("CREATED")
+                    .requisitionId(connectionInfo.get("requisitionId"))
+                    .reference(reference)
+                    .status("PENDING")
                     .build();
 
-            bankConnectionRepo.save(connection);
-
-            // Initiate requisition
-            Map<String, String> connectionInfo = requisitionService.createRequisition(
-                    bankId,
-                    connection.getRequisitionId()
-            );
-
-            // Update with requisition ID
-            connection.setRequisitionId(connectionInfo.get("requisitionId"));
             bankConnectionRepo.save(connection);
 
             return ResponseEntity.ok(Map.of(
@@ -85,9 +81,13 @@ public class BankController {
     public ResponseEntity<?> handleCallback(
             @RequestParam String ref,
             @RequestParam(required = false) String error) {
-
         try {
-            BankConnection connection = bankConnectionRepo.findByRequisitionId(ref);
+            BankConnection connection = bankConnectionRepo.findByReference(ref)
+                    .orElseThrow (() -> new IllegalArgumentException("Invalid reference: " + ref));
+            if (connection == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Invalid reference"));
+            }
 
             if (error != null) {
                 connection.setStatus("ERROR");
@@ -101,7 +101,8 @@ public class BankController {
 
             return ResponseEntity.ok(Map.of(
                     "message", "Bank account connected successfully",
-                    "requisitionId", ref
+                    "requisitionId", connection.getRequisitionId(),
+                    "reference", ref
             ));
 
         } catch (Exception e) {
@@ -110,7 +111,32 @@ public class BankController {
         }
     }
 
-    private String generateRequisitionId(Users user) {
-        return "requisition-" + user.getId() + "-" + System.currentTimeMillis();
+    @GetMapping("/transactions")
+    public ResponseEntity<?> getTransactions(
+            @AuthenticationPrincipal Object principal) {
+
+        try {
+            String username = principal instanceof UserDetails
+                    ? ((UserDetails) principal).getUsername()
+                    : principal.toString();
+
+            Users user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new UsernameNotFoundException(username));
+
+            List<BankConnection> connections = bankConnectionRepo.findByUser(user);
+            if (connections.isEmpty()) {
+                return ResponseEntity.ok(Map.of("message", "No bank connections found"));
+            }
+
+            Map<String, Object> transactions = bankInstitutionService.getTransactions(connections);
+            return ResponseEntity.ok(transactions);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to fetch transactions: " + e.getMessage()));
+        }
+    }
+
+    private String generateReference(Users user) {
+        return "user-" + user.getId() + "-" + System.currentTimeMillis();
     }
 }
