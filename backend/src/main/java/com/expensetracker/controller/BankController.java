@@ -7,6 +7,8 @@ import com.expensetracker.repository.BankConnectionRepository;
 import com.expensetracker.repository.UserRepository;
 import com.expensetracker.service.BankInstitutionService;
 import com.expensetracker.service.RequisitionService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,22 +22,77 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/banking")
 @RequiredArgsConstructor
+@Tag(name = "Banking", description = "Endpoints for managing bank institutions and connections")
 public class BankController {
     private final BankInstitutionService bankInstitutionService;
     private final UserRepository userRepository;
     private final RequisitionService requisitionService;
     private final BankConnectionRepository bankConnectionRepo;
 
+    @Operation(
+            summary = "Get Supported Bank Institutions",
+            description = "Retrieves a list of supported bank institutions for a given country.",
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "200",
+                            description = "Successfully retrieved bank institutions",
+                            content = @io.swagger.v3.oas.annotations.media.Content(
+                                    mediaType = "application/json",
+                                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = BankDTO.class)
+                            )
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "400",
+                            description = "Invalid country parameter"
+                    )
+            }
+    )
     @GetMapping("/institutions")
     public ResponseEntity<List<BankDTO>> getInstitutions(@RequestParam String country) {
         return ResponseEntity.ok(bankInstitutionService.getSupportedBanks(country));
     }
 
+    @Operation(
+            summary = "Get Bank Institution Details",
+            description = "Retrieves detailed information about a specific bank institution by its ID.",
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "200",
+                            description = "Successfully retrieved bank institution details",
+                            content = @io.swagger.v3.oas.annotations.media.Content(
+                                    mediaType = "application/json",
+                                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = BankDTO.class)
+                            )
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "404",
+                            description = "Bank institution not found"
+                    )
+            }
+    )
     @GetMapping("/institutions/{bankId}")
     public ResponseEntity<BankDTO> getInstitutionDetails(@PathVariable String bankId) {
         return ResponseEntity.ok(bankInstitutionService.getBankDetails(bankId));
     }
 
+    @Operation(
+            summary = "Connect Bank Account",
+            description = "Initiates the process to connect a bank account for the authenticated user.",
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "200",
+                            description = "Successfully initiated bank connection",
+                            content = @io.swagger.v3.oas.annotations.media.Content(
+                                    mediaType = "application/json",
+                                    schema = @io.swagger.v3.oas.annotations.media.Schema(type = "object", example = "{\"authorizationUrl\": \"https://example.com/connect\", \"requisitionId\": \"12345\"}")
+                            )
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "500",
+                            description = "Internal server error"
+                    )
+            }
+    )
     @PostMapping("/institutions/{bankId}/connect")
     public ResponseEntity<?> connectBankAccount(
             @PathVariable String bankId,
@@ -77,6 +134,28 @@ public class BankController {
         }
     }
 
+    @Operation(
+            summary = "Handle Bank Connection Callback",
+            description = "Processes the callback from the bank after user authorization.",
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "200",
+                            description = "Successfully processed bank connection callback",
+                            content = @io.swagger.v3.oas.annotations.media.Content(
+                                    mediaType = "application/json",
+                                    schema = @io.swagger.v3.oas.annotations.media.Schema(type = "object", example = "{\"message\": \"Bank account connected successfully\", \"requisitionId\": \"12345\", \"reference\": \"user-1-1633036800000\"}")
+                            )
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "400",
+                            description = "Invalid reference or error in connection"
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "500",
+                            description = "Internal server error"
+                    )
+            }
+    )
     @GetMapping("/callback")
     public ResponseEntity<?> handleCallback(
             @RequestParam String ref,
@@ -111,6 +190,24 @@ public class BankController {
         }
     }
 
+    @Operation(
+            summary = "Get User Bank Connections",
+            description = "Retrieves all bank connections for the authenticated user.",
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "200",
+                            description = "Successfully retrieved bank connections",
+                            content = @io.swagger.v3.oas.annotations.media.Content(
+                                    mediaType = "application/json",
+                                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = BankConnection.class)
+                            )
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "404",
+                            description = "No bank connections found"
+                    )
+            }
+    )
     @GetMapping("/transactions")
     public ResponseEntity<?> getTransactions(
             @AuthenticationPrincipal Object principal) {

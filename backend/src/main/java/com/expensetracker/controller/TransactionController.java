@@ -6,6 +6,8 @@ import com.expensetracker.model.Transaction;
 import com.expensetracker.model.Users;
 import com.expensetracker.repository.UserRepository;
 import com.expensetracker.service.TransactionService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -22,11 +24,26 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/transactions")
 @RequiredArgsConstructor
+@Tag(name = "Transaction Management", description = "Endpoints for managing user transactions")
 public class TransactionController {
 
     private final TransactionService transactionService;
     private final UserRepository userRepository;
 
+    @Operation(
+            summary = "Sync Transactions",
+            description = "Fetch and save transactions for the authenticated user",
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "200",
+                            description = "Transactions synced successfully"
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "500",
+                            description = "Failed to sync transactions"
+                    )
+            }
+    )
     @PostMapping("/sync")
     public ResponseEntity<?> syncTransactions(@AuthenticationPrincipal Object principal) {
         try {
@@ -51,6 +68,20 @@ public class TransactionController {
         }
     }
 
+    @Operation(
+            summary = "Get User Transactions",
+            description = "Retrieve all transactions for the authenticated user",
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "200",
+                            description = "Successfully retrieved transactions"
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "500",
+                            description = "Failed to retrieve transactions"
+                    )
+            }
+    )
     @GetMapping("/")
     public ResponseEntity<List<TransactionDto>> getUserTransactions(@AuthenticationPrincipal Object principal) {
         try {
@@ -76,6 +107,20 @@ public class TransactionController {
         }
     }
 
+    @Operation(
+            summary = "Get User Transactions by Date Range",
+            description = "Retrieve transactions for the authenticated user within a specified date range",
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "200",
+                            description = "Successfully retrieved transactions"
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "500",
+                            description = "Failed to retrieve transactions"
+                    )
+            }
+    )
     @GetMapping("/date-range")
     public ResponseEntity<List<Transaction>> getUserTransactionsByDateRange(
             @AuthenticationPrincipal Object principal,
@@ -99,6 +144,20 @@ public class TransactionController {
         }
     }
 
+    @Operation(
+            summary = "Get User Transactions by Type",
+            description = "Retrieve transactions for the authenticated user filtered by transaction type",
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "200",
+                            description = "Successfully retrieved transactions"
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "500",
+                            description = "Failed to retrieve transactions"
+                    )
+            }
+    )
     @GetMapping("/type/{transactionType}")
     public ResponseEntity<List<Transaction>> getUserTransactionsByType(
             @AuthenticationPrincipal Object principal,
