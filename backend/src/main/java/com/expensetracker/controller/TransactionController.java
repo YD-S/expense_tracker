@@ -68,10 +68,19 @@ public class TransactionController {
 
             List<Transaction> transactions = transactionService.fetchAndSaveTransactions(user.getId());
 
+            if (transactions.isEmpty()) {
+                return ResponseEntity.ok(Map.of("message", "No new transactions found"));
+            }
+
+            List<TransactionDto> transactionsDto = new ArrayList<>();
+            for (Transaction tx : transactions) {
+                transactionsDto.add(TransactionMapper.toDto(tx));
+            }
+
             return ResponseEntity.ok(Map.of(
                     "message", "Transactions synced successfully",
-                    "transactionCount", transactions.size(),
-                    "transactions", transactions
+                    "transactionCount", transactionsDto.size(),
+                    "transactions", transactionsDto
             ));
 
         } catch (Exception e) {
@@ -150,7 +159,7 @@ public class TransactionController {
             }
     )
     @GetMapping("/date-range")
-    public ResponseEntity<List<Transaction>> getUserTransactionsByDateRange(
+    public ResponseEntity<List<TransactionDto>> getUserTransactionsByDateRange(
             @AuthenticationPrincipal Object principal,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -165,7 +174,13 @@ public class TransactionController {
 
             List<Transaction> transactions = transactionService.getUserTransactionsByDateRange(
                     user.getId(), startDate, endDate);
-            return ResponseEntity.ok(transactions);
+
+            List<TransactionDto> transactionDtos = new ArrayList<>();
+            for (Transaction tx : transactions) {
+                transactionDtos.add(TransactionMapper.toDto(tx));
+            }
+
+            return ResponseEntity.ok(transactionDtos);
 
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
@@ -195,7 +210,7 @@ public class TransactionController {
             }
     )
     @GetMapping("/type/{transactionType}")
-    public ResponseEntity<List<Transaction>> getUserTransactionsByType(
+    public ResponseEntity<List<TransactionDto>> getUserTransactionsByType(
             @AuthenticationPrincipal Object principal,
             @PathVariable Transaction.TransactionType transactionType) {
 
@@ -209,7 +224,13 @@ public class TransactionController {
 
             List<Transaction> transactions = transactionService.getUserTransactionsByType(
                     user.getId(), transactionType);
-            return ResponseEntity.ok(transactions);
+
+            List<TransactionDto> transactionDtos = new ArrayList<>();
+            for (Transaction tx : transactions) {
+                transactionDtos.add(TransactionMapper.toDto(tx));
+            }
+
+            return ResponseEntity.ok(transactionDtos);
 
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
