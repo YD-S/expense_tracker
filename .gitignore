@@ -75,5 +75,3 @@ logs/
 *.sublime-workspace
 *.sublime-project
 db/
-prometheus_data/
-grafana_data/
