@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -99,9 +100,13 @@ public class AuthController {
         try {
             authService.register(request);
             return new ResponseEntity<>(HttpStatus.CREATED);
-        } catch (RuntimeException e) {
+        } catch (IllegalAccessException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Username or Email already exists"));
+
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "Username, email, and password must not be null"));
 
         } catch (Exception e) {
             System.err.println("Registration error: " + e.getMessage());

@@ -51,7 +51,8 @@ public class SecurityConfig {
                                 "/dev/docs/**",
                                 "/dev/api-docs/**",
                                 "/dev/swagger-ui/**",
-                                "/actuator/**"
+                                "/actuator/**",
+                                "/api/banking/callback"
                         ).permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()

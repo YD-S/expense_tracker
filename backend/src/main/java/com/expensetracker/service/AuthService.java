@@ -10,6 +10,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -42,9 +43,12 @@ public class AuthService {
         );
     }
 
-    public void register(AuthRequest request) {
+    public void register(AuthRequest request) throws IllegalAccessException {
+        if (request.username() == null || request.email() == null || request.password() == null) {
+            throw new UsernameNotFoundException("Username, email, and password must not be null");
+        }
         if (userRepository.existsByUsername(request.username()) || userRepository.existsByEmail(request.email())) {
-            throw new RuntimeException("Username or Email already exists");
+            throw new IllegalAccessException("Username or Email already exists");
         }
         Users user = Users.builder()
                 .username(request.username())
