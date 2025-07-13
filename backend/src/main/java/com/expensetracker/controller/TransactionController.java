@@ -22,8 +22,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -112,7 +114,7 @@ public class TransactionController {
             }
     )
     @GetMapping("/")
-    public ResponseEntity<List<TransactionDto>> getUserTransactions(@AuthenticationPrincipal Object principal) {
+    public ResponseEntity<?> getUserTransactions(@AuthenticationPrincipal Object principal) {
         try {
             String username = principal instanceof UserDetails
                     ? ((UserDetails) principal).getUsername()
@@ -123,16 +125,15 @@ public class TransactionController {
 
             List<Transaction> transactions = transactionService.getUserTransactions(user.getId());
 
-            List<TransactionDto> transactionDtos = new ArrayList<>();
-
-            for( Transaction tx : transactions) {
-                transactionDtos.add(TransactionMapper.toDto(tx));
-            }
+            List<TransactionDto> transactionDtos = transactions.stream()
+                    .sorted(Comparator.comparing(Transaction::getId))
+                    .map(TransactionMapper::toDto)
+                    .collect(Collectors.toList());
 
             return ResponseEntity.ok(transactionDtos);
 
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.internalServerError().body(e.getMessage());
         }
     }
 
