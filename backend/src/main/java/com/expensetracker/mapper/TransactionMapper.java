@@ -22,7 +22,7 @@ public class TransactionMapper {
 
         return new TransactionDto(
                 tx.getId(),
-                tx.getTransactionId() != null ? tx.getTransactionId() : null,
+                tx.getTransactionId(),
                 tx.getAccountId() != null ? tx.getAccountId() : null,
                 tx.getAmount() != null ? tx.getAmount() : null,
                 tx.getCurrency() != null ? tx.getCurrency() : null,
