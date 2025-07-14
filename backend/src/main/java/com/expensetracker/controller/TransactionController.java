@@ -114,7 +114,7 @@ public class TransactionController {
             }
     )
     @GetMapping("/")
-    public ResponseEntity<?> getUserTransactions(@AuthenticationPrincipal Object principal) {
+    public ResponseEntity<List<TransactionDto>> getUserTransactions(@AuthenticationPrincipal Object principal) {
         try {
             String username = principal instanceof UserDetails
                     ? ((UserDetails) principal).getUsername()
