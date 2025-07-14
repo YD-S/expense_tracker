@@ -7,29 +7,42 @@ import com.expensetracker.model.Transaction;
 public class TransactionMapper {
 
     public static TransactionDto toDto(Transaction tx) {
+        if (tx == null) {
+            return null;
+        }
+
+        BankConnection bankConnection = tx.getBankConnection();
+        String institutionId = bankConnection != null ? bankConnection.getInstitutionId() : null;
+        String bankConnectionStatus = bankConnection != null ? bankConnection.getStatus() : null;
+
+        String username = null;
+        if (bankConnection != null && bankConnection.getUser() != null) {
+            username = bankConnection.getUser().getUsername();
+        }
+
         return new TransactionDto(
                 tx.getId(),
                 tx.getTransactionId(),
-                tx.getAccountId(),
-                tx.getAmount(),
-                tx.getCurrency(),
-                tx.getDescription(),
-                tx.getTransactionDate(),
-                tx.getBookingDate(),
-                tx.getValueDate(),
-                tx.getCreditorName(),
-                tx.getDebtorName(),
-                tx.getCreditorAccount(),
-                tx.getDebtorAccount(),
-                tx.getTransactionCode(),
-                tx.getProprietaryBankTransactionCode(),
-                tx.getBalanceAfterTransaction(),
-                tx.getTransactionType(),
-                tx.getBankConnection().getInstitutionId(),
-                tx.getBankConnection().getStatus(),
-                tx.getBankConnection().getUser().getUsername(),
-                tx.getCreatedAt(),
-                tx.getUpdatedAt()
+                tx.getAccountId() != null ? tx.getAccountId() : null,
+                tx.getAmount() != null ? tx.getAmount() : null,
+                tx.getCurrency() != null ? tx.getCurrency() : null,
+                tx.getDescription() != null ? tx.getDescription() : null,
+                tx.getTransactionDate() != null ? tx.getTransactionDate() : null,
+                tx.getBookingDate() != null ? tx.getBookingDate() : null,
+                tx.getValueDate() != null ? tx.getValueDate() : null,
+                tx.getCreditorName() != null ? tx.getCreditorName() : null,
+                tx.getDebtorName() != null ? tx.getDebtorName() : null,
+                tx.getCreditorAccount() != null ? tx.getCreditorAccount() : null,
+                tx.getDebtorAccount() != null ? tx.getDebtorAccount() : null,
+                tx.getTransactionCode() != null ? tx.getTransactionCode() : null,
+                tx.getProprietaryBankTransactionCode() != null ? tx.getProprietaryBankTransactionCode() : null,
+                tx.getBalanceAfterTransaction() != null ? tx.getBalanceAfterTransaction() : null,
+                tx.getTransactionType() != null ? tx.getTransactionType() : null,
+                institutionId,
+                bankConnectionStatus,
+                username,
+                tx.getCreatedAt() != null ? tx.getCreatedAt() : null,
+                tx.getUpdatedAt() != null ? tx.getUpdatedAt() : null
         );
     }
 
