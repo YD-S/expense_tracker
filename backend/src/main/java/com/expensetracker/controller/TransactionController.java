@@ -133,7 +133,7 @@ public class TransactionController {
             return ResponseEntity.ok(transactionDtos);
 
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to retrieve transactions"));
         }
     }
 
