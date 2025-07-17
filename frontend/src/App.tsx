@@ -1,11 +1,13 @@
 import LoginPage from "./pages/LoginPage.tsx";
+import {useTheme} from "./hooks/UseTheme.tsx";
 
 function App() {
+    const { theme } = useTheme();
 
   return (
-    <>
-      <LoginPage />
-    </>
+      <div className={`app ${theme}`}>
+        <LoginPage />
+      </div>
   )
 }
 
