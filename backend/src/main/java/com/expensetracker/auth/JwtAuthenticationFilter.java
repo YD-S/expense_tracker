@@ -34,13 +34,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull  HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
-        log.info("JwtAuthenticationFilter called for URL: {}", request.getRequestURI());
 
         final String authHeader = request.getHeader("Authorization");
-        log.info("Authorization header: {}", authHeader);
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.info("No valid Authorization header, continuing filter chain");
             filterChain.doFilter(request, response);
             return;
         }
@@ -51,25 +48,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             username = jwtService.extractUsername(jwt);
         } catch (SignatureException e) {
-            log.debug("JWT signature validation failed: {}", e.getMessage());
             request.setAttribute("jwtError", "INVALID_SIGNATURE");
             request.setAttribute("jwtErrorMessage", "JWT signature is invalid");
             filterChain.doFilter(request, response);
             return;
         } catch (MalformedJwtException e) {
-            log.debug("JWT is malformed: {}", e.getMessage());
             request.setAttribute("jwtError", "MALFORMED_JWT");
             request.setAttribute("jwtErrorMessage", "JWT token is malformed");
             filterChain.doFilter(request, response);
             return;
         } catch (ExpiredJwtException e) {
-            log.debug("JWT is expired: {}", e.getMessage());
             request.setAttribute("jwtError", "EXPIRED_JWT");
             request.setAttribute("jwtErrorMessage", "JWT token has expired");
             filterChain.doFilter(request, response);
             return;
         } catch (Exception e) {
-            log.debug("JWT parsing failed: {}", e.getMessage());
             request.setAttribute("jwtError", "INVALID_JWT");
             request.setAttribute("jwtErrorMessage", "JWT token is invalid");
             filterChain.doFilter(request, response);
@@ -94,7 +87,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             } catch (Exception e) {
-                log.debug("Authentication failed: {}", e.getMessage());
                 request.setAttribute("jwtError", "AUTHENTICATION_FAILED");
                 request.setAttribute("jwtErrorMessage", "Authentication failed");
                 filterChain.doFilter(request, response);

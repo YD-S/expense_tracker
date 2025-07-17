@@ -45,10 +45,8 @@ public class JwtAuthEntryPoint implements AuthenticationEntryPoint {
                 errorMessage
         );
 
-        log.info("Sending JSON response: {}", jsonResponse);
         response.getWriter().write(jsonResponse);
         response.getWriter().flush();
 
-        log.info("JSON response sent successfully");
     }
 }
