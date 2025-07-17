@@ -153,7 +153,12 @@ public class TransactionService {
             if (balanceData != null) {
                 String balanceStr = (String) balanceData.get("amount");
                 if (balanceStr != null) {
-                    balanceAfterTransaction = new BigDecimal(balanceStr);
+                    try {
+                        balanceAfterTransaction = new BigDecimal(balanceStr);
+                    } catch (NumberFormatException e) {
+                        logger.warning("Invalid balance amount format: " + balanceStr);
+                        balanceAfterTransaction = null; // or handle with a default value if needed
+                    }
                 }
             }
 
