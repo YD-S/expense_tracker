@@ -95,13 +95,11 @@ public class TransactionService {
 
         List<Transaction> savedTransactions = new ArrayList<>();
 
-        // Process booked transactions
         if (transactions.containsKey("booked")) {
             for (Map<String, Object> txnData : transactions.get("booked")) {
                 Transaction transaction = mapToTransaction(txnData, accountId, connection);
                 if (transaction != null) {
-                    // Check if transaction already exists
-                    if (!transactionRepository.findByTransactionId(transaction.getTransactionId()).isPresent()) {
+                    if (transactionRepository.findByTransactionId(transaction.getTransactionId()).isEmpty()) {
                         savedTransactions.add(transactionRepository.save(transaction));
                     }
                 }
@@ -112,7 +110,7 @@ public class TransactionService {
             for (Map<String, Object> txnData : transactions.get("pending")) {
                 Transaction transaction = mapToTransaction(txnData, accountId, connection);
                 if (transaction != null) {
-                    if (!transactionRepository.findByTransactionId(transaction.getTransactionId()).isPresent()) {
+                    if (transactionRepository.findByTransactionId(transaction.getTransactionId()).isEmpty()) {
                         savedTransactions.add(transactionRepository.save(transaction));
                     }
                 }
@@ -132,6 +130,42 @@ public class TransactionService {
             Transaction.TransactionType type = amount.compareTo(BigDecimal.ZERO) >= 0 ?
                     Transaction.TransactionType.CREDIT : Transaction.TransactionType.DEBIT;
 
+            String creditorAccount = null;
+            Map<String, Object> creditorAccountData = (Map<String, Object>) txnData.get("creditorAccount");
+            if (creditorAccountData != null) {
+                creditorAccount = (String) creditorAccountData.get("iban");
+                if (creditorAccount == null) {
+                    creditorAccount = (String) creditorAccountData.get("bban");
+                }
+            }
+
+            String debtorAccount = null;
+            Map<String, Object> debtorAccountData = (Map<String, Object>) txnData.get("debtorAccount");
+            if (debtorAccountData != null) {
+                debtorAccount = (String) debtorAccountData.get("iban");
+                if (debtorAccount == null) {
+                    debtorAccount = (String) debtorAccountData.get("bban");
+                }
+            }
+
+            BigDecimal balanceAfterTransaction = null;
+            Map<String, Object> balanceData = (Map<String, Object>) txnData.get("balanceAfterTransaction");
+            if (balanceData != null) {
+                String balanceStr = (String) balanceData.get("amount");
+                if (balanceStr != null) {
+                    try {
+                        balanceAfterTransaction = new BigDecimal(balanceStr);
+                    } catch (NumberFormatException e) {
+                        logger.warning("Invalid balance amount format: " + balanceStr);
+                        balanceAfterTransaction = null; // or handle with a default value if needed
+                    }
+                }
+            }
+
+            String bankTransactionCode = (String) txnData.get("bankTransactionCode");
+
+            String proprietaryBankTransactionCode = (String) txnData.get("proprietaryBankTransactionCode");
+
             return Transaction.builder()
                     .transactionId((String) txnData.get("transactionId"))
                     .accountId(accountId)
@@ -146,6 +180,11 @@ public class TransactionService {
                             LocalDate.parse((String) txnData.get("valueDate"), DateTimeFormatter.ISO_LOCAL_DATE) : null)
                     .creditorName((String) txnData.get("creditorName"))
                     .debtorName((String) txnData.get("debtorName"))
+                    .creditorAccount(creditorAccount)
+                    .debtorAccount(debtorAccount)
+                    .transactionCode(bankTransactionCode)
+                    .proprietaryBankTransactionCode(proprietaryBankTransactionCode)
+                    .balanceAfterTransaction(balanceAfterTransaction)
                     .transactionType(type)
                     .build();
         } catch (Exception e) {
