@@ -1,5 +1,6 @@
 import {useEffect, useState} from "react";
 import {ThemeContext, type Theme} from "../Context/ThemeContext.tsx";
+import * as React from "react";
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     const [theme, setTheme] = useState<Theme>(() => {
