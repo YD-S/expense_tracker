@@ -60,13 +60,6 @@ const refreshAccessToken = async (): Promise<string | null> => {
         const refreshToken = localStorage.getItem('refreshToken');
         if (!refreshToken) return null;
 
-        const getBaseURL = () => {
-            if (import.meta.env.DEV) {
-                return 'http://localhost:8080';
-            }
-            return 'http://backend:8080';
-        };
-
         const response = await axios.post(`${getBaseURL()}/api/auth/refresh`, {
             refreshToken
         });
