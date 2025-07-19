@@ -1,15 +1,13 @@
-import ThemeChangeButton from "../components/ThemeChangeButton.tsx";
+import LoginRegisterForm from '../components/LoginRegisterForm';
 
 function LoginPage(){
     return (
         <>
-            <ThemeChangeButton />
-            <div className={"bg-bg text-text"}>
-            <h1>Login Page</h1>
-            <p>Please enter your credentials to log in.</p>
-            </div>
+            <LoginRegisterForm />
         </>
     );
 }
+
+
 
 export default LoginPage;
