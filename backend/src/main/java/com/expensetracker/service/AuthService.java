@@ -3,6 +3,7 @@ package com.expensetracker.service;
 import com.expensetracker.auth.JwtService;
 import com.expensetracker.dto.AuthRequest;
 import com.expensetracker.dto.AuthResponse;
+import com.expensetracker.dto.LoginRequest;
 import com.expensetracker.model.Users;
 import com.expensetracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authManager;
 
-    public AuthResponse login(AuthRequest request) {
+    public AuthResponse login(LoginRequest request) {
         Authentication authentication = authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.username(), request.password())
         );

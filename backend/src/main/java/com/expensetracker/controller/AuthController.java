@@ -3,6 +3,7 @@ package com.expensetracker.controller;
 import com.expensetracker.auth.JwtService;
 import com.expensetracker.dto.AuthRequest;
 import com.expensetracker.dto.AuthResponse;
+import com.expensetracker.dto.LoginRequest;
 import com.expensetracker.dto.RefreshRequest;
 import com.expensetracker.model.Users;
 import com.expensetracker.repository.UserRepository;
@@ -58,7 +59,7 @@ public class AuthController {
             }
     )
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
             AuthResponse response = authService.login(request);
             return ResponseEntity.ok(response);
