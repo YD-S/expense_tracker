@@ -13,7 +13,7 @@ function LoginRegisterForm() {
         confirmPassword: '',
         agreeTerms: false
     });
-    const { login } = useAuth();
+    const { login, register } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const from = location.state?.from?.pathname || "/";
@@ -36,6 +36,14 @@ function LoginRegisterForm() {
 
     const handleRegisterSubmit = (e: { preventDefault: () => void; }) => {
         e.preventDefault();
+        register(registerData.username, registerData.email, registerData.password).then(
+            () => {
+                navigate(from, { replace: true });
+            }
+        ).catch((error) => {
+            console.error('Registration failed:', error.message);
+        }
+        )
         console.log('Register:', registerData);
     };
 

@@ -95,13 +95,13 @@ public class TransactionService {
 
         List<Transaction> savedTransactions = new ArrayList<>();
 
-        // Process booked transactions
+
         if (transactions.containsKey("booked")) {
             for (Map<String, Object> txnData : transactions.get("booked")) {
                 Transaction transaction = mapToTransaction(txnData, accountId, connection);
                 if (transaction != null) {
                     // Check if transaction already exists
-                    if (!transactionRepository.findByTransactionId(transaction.getTransactionId()).isPresent()) {
+                    if (transactionRepository.findByTransactionId(transaction.getTransactionId()).isEmpty()) {
                         savedTransactions.add(transactionRepository.save(transaction));
                     }
                 }
@@ -112,7 +112,7 @@ public class TransactionService {
             for (Map<String, Object> txnData : transactions.get("pending")) {
                 Transaction transaction = mapToTransaction(txnData, accountId, connection);
                 if (transaction != null) {
-                    if (!transactionRepository.findByTransactionId(transaction.getTransactionId()).isPresent()) {
+                    if (transactionRepository.findByTransactionId(transaction.getTransactionId()).isEmpty()) {
                         savedTransactions.add(transactionRepository.save(transaction));
                     }
                 }
@@ -125,12 +125,42 @@ public class TransactionService {
     private Transaction mapToTransaction(Map<String, Object> txnData, String accountId, BankConnection connection) {
         try {
             Map<String, Object> transactionAmount = (Map<String, Object>) txnData.get("transactionAmount");
-            String amountStr = (String) transactionAmount.get("amount");
-            String currency = (String) transactionAmount.get("currency");
+            String amountStr = transactionAmount != null ? (String) transactionAmount.get("amount") : "0.00";
+            String currency = transactionAmount != null ? (String) transactionAmount.get("currency") : "UNKNOWN";
 
             BigDecimal amount = new BigDecimal(amountStr);
-            Transaction.TransactionType type = amount.compareTo(BigDecimal.ZERO) >= 0 ?
-                    Transaction.TransactionType.CREDIT : Transaction.TransactionType.DEBIT;
+            Transaction.TransactionType type = amount.compareTo(BigDecimal.ZERO) >= 0
+                    ? Transaction.TransactionType.CREDIT
+                    : Transaction.TransactionType.DEBIT;
+
+            String bookingDateStr = (String) txnData.get("bookingDate");
+            String valueDateStr = (String) txnData.get("valueDate");
+
+            LocalDate bookingDate = bookingDateStr != null
+                    ? LocalDate.parse(bookingDateStr, DateTimeFormatter.ISO_LOCAL_DATE)
+                    : null;
+            LocalDate valueDate = valueDateStr != null
+                    ? LocalDate.parse(valueDateStr, DateTimeFormatter.ISO_LOCAL_DATE)
+                    : null;
+
+            LocalDate transactionDate = bookingDate != null ? bookingDate : valueDate;
+
+            Map<String, Object> creditorAccount = (Map<String, Object>) txnData.get("creditorAccount");
+            String creditorIban = creditorAccount != null ? (String) creditorAccount.get("iban") : null;
+
+            Map<String, Object> debtorAccount = (Map<String, Object>) txnData.get("debtorAccount");
+            String debtorIban = debtorAccount != null ? (String) debtorAccount.get("iban") : null;
+
+            String bankTransactionCode = (String) txnData.get("bankTransactionCode");
+            String proprietaryCode = (String) txnData.get("proprietaryBankTransactionCode");
+
+            BigDecimal balanceAfter = null;
+            if (txnData.containsKey("balanceAfterTransaction")) {
+                Map<String, Object> balanceAfterMap = (Map<String, Object>) txnData.get("balanceAfterTransaction");
+                if (balanceAfterMap != null && balanceAfterMap.get("amount") != null) {
+                    balanceAfter = new BigDecimal((String) balanceAfterMap.get("amount"));
+                }
+            }
 
             return Transaction.builder()
                     .transactionId((String) txnData.get("transactionId"))
@@ -139,15 +169,19 @@ public class TransactionService {
                     .amount(amount.abs())
                     .currency(currency)
                     .description((String) txnData.get("remittanceInformationUnstructured"))
-                    .transactionDate(LocalDate.parse((String) txnData.get("bookingDate"), DateTimeFormatter.ISO_LOCAL_DATE))
-                    .bookingDate(txnData.get("bookingDate") != null ?
-                            LocalDate.parse((String) txnData.get("bookingDate"), DateTimeFormatter.ISO_LOCAL_DATE) : null)
-                    .valueDate(txnData.get("valueDate") != null ?
-                            LocalDate.parse((String) txnData.get("valueDate"), DateTimeFormatter.ISO_LOCAL_DATE) : null)
+                    .transactionDate(transactionDate)
+                    .bookingDate(bookingDate)
+                    .valueDate(valueDate)
                     .creditorName((String) txnData.get("creditorName"))
                     .debtorName((String) txnData.get("debtorName"))
+                    .creditorAccount(creditorIban)
+                    .debtorAccount(debtorIban)
                     .transactionType(type)
+                    .transactionCode(bankTransactionCode)
+                    .proprietaryBankTransactionCode(proprietaryCode)
+                    .balanceAfterTransaction(balanceAfter)
                     .build();
+
         } catch (Exception e) {
             logger.warning("Failed to map transaction data: " + e.getMessage());
             return null;
