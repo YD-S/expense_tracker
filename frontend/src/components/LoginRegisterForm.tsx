@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import {useAuth} from "../hooks/UseAuth.tsx";
+import { useNavigate, useLocation } from "react-router-dom";
 
 function LoginRegisterForm() {
     const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-    const [loginData, setLoginData] = useState({ email: '', password: '' });
+    const [loginData, setLoginData] = useState({ username: '', password: '' });
     const [registerData, setRegisterData] = useState({
         username: '',
         email: '',
@@ -11,14 +13,25 @@ function LoginRegisterForm() {
         confirmPassword: '',
         agreeTerms: false
     });
+    const { login } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const from = location.state?.from?.pathname || "/";
 
     const toggleRegister = () => {
         setIsRegisterOpen(!isRegisterOpen);
     };
 
-    const handleLoginSubmit = (e: { preventDefault: () => void; }) => {
+    const handleLoginSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Login:', loginData);
+
+        login(loginData.username, loginData.password)
+            .then(() => {
+                navigate(from, { replace: true });
+            })
+            .catch((error) => {
+                console.error('Login failed:', error.message);
+            });
     };
 
     const handleRegisterSubmit = (e: { preventDefault: () => void; }) => {
@@ -34,10 +47,10 @@ function LoginRegisterForm() {
                         <div className="space-y-4">
                             <h1 className="text-4xl font-bold text-center mb-6 text-text">Sign In</h1>
                             <input
-                                type="email"
-                                placeholder="Email"
-                                value={loginData.email}
-                                onChange={(e) => setLoginData({...loginData, email: e.target.value})}
+                                type="text"
+                                placeholder="Username"
+                                value={loginData.username}
+                                onChange={(e) => setLoginData({...loginData, username: e.target.value})}
                                 className="w-full p-4 rounded-[15px] bg-bg border border-border text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-300"
                             />
                             <input

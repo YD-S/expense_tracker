@@ -12,13 +12,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
     const api = UseAxios();
 
-    const isAuthenticated = !!user;
-
     const getTokens = () => {
         const accessToken = localStorage.getItem('accessToken');
         const refreshToken = localStorage.getItem('refreshToken');
         return { accessToken, refreshToken };
     };
+
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+        const { accessToken, refreshToken } = getTokens();
+        return !!accessToken && !!refreshToken;
+    });
 
     const setTokens = (accessToken: string, refreshToken: string) => {
         localStorage.setItem('accessToken', accessToken);
@@ -44,16 +47,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
-    const login = async (email: string, password: string) => {
+    const login = async (username: string, password: string) => {
         try {
-            const response = await axios.post('/api/auth/login', {
-                email,
+            console.log('Attempting to login with:', username, password);
+            const response = await axios.post('http://localhost:8080/api/auth/login', {
+                username,
                 password
             });
 
-            const { accessToken, refreshToken, user } = response.data;
+            const { accessToken, refreshToken } = response.data;
             setTokens(accessToken, refreshToken);
-            setUser(user);
+            setIsAuthenticated(true);
         } catch (error) {
             console.error('Login error:', error);
             if (error.response?.data?.message) {
@@ -63,16 +67,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
-    const register = async (email : string, password : string) => {
+    const register = async (username : string,  email : string, password : string) => {
         try {
-            const response = await axios.post('/api/auth/register', {
+            const response = await axios.post('http://localhost:8080/api/auth/register', {
+                username,
                 email,
                 password
             });
 
-            const { accessToken, refreshToken, user } = response.data;
-            setTokens(accessToken, refreshToken);
-            setUser(user);
+            const responseCode = response.status;
+            if (responseCode === 201) {
+                console.log('Registration successful');
+                return true;
+            }else {
+                console.error('Registration failed with status:', responseCode);
+                throw new Error('Registration failed');
+            }
+
         } catch (error) {
             console.error('Registration error:', error);
             if (error.response?.data?.message) {
@@ -88,13 +99,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     useEffect(() => {
-        const { accessToken } = getTokens();
-
-        if (accessToken) {
-            verifyUser();
-        } else {
-            setIsLoading(false);
-        }
+        const { accessToken, refreshToken } = getTokens();
+        setIsAuthenticated(!!accessToken && !!refreshToken);
+        setIsLoading(false);
     }, []);
 
     const value: AuthContextType = {
