@@ -38,4 +38,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             "ORDER BY t.transactionDate DESC")
     List<Transaction> findByUserIdAndTransactionType(@Param("userId") Long userId,
                                                      @Param("transactionType") Transaction.TransactionType transactionType);
+
+    List<Transaction> findByAccountIdAndTransactionDateBetween(String accountId, LocalDate startDate, LocalDate now);
+
+
+    @Query("SELECT t.transactionId FROM Transaction t WHERE t.transactionId IN :transactionIds")
+    List<String> findExistingTransactionIds(@Param("transactionIds") List<String> transactionIds);
 }

@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -94,15 +95,37 @@ public class TransactionService {
         Map<String, List<Map<String, Object>>> transactions = (Map<String, List<Map<String, Object>>>) responseBody.get("transactions");
 
         List<Transaction> savedTransactions = new ArrayList<>();
+        List<Transaction> newTransactions = new ArrayList<>();
 
+        List<String> allTransactionIds = new ArrayList<>();
 
         if (transactions.containsKey("booked")) {
             for (Map<String, Object> txnData : transactions.get("booked")) {
-                Transaction transaction = mapToTransaction(txnData, accountId, connection);
-                if (transaction != null) {
-                    // Check if transaction already exists
-                    if (transactionRepository.findByTransactionId(transaction.getTransactionId()).isEmpty()) {
-                        savedTransactions.add(transactionRepository.save(transaction));
+                String transactionId = (String) txnData.get("transactionId");
+                if (transactionId != null) {
+                    allTransactionIds.add(transactionId);
+                }
+            }
+        }
+
+        if (transactions.containsKey("pending")) {
+            for (Map<String, Object> txnData : transactions.get("pending")) {
+                String transactionId = (String) txnData.get("transactionId");
+                if (transactionId != null) {
+                    allTransactionIds.add(transactionId);
+                }
+            }
+        }
+
+        List<String> existingTransactionIds = transactionRepository.findExistingTransactionIds(allTransactionIds);
+
+        if (transactions.containsKey("booked")) {
+            for (Map<String, Object> txnData : transactions.get("booked")) {
+                String transactionId = (String) txnData.get("transactionId");
+                if (transactionId != null && !existingTransactionIds.contains(transactionId)) {
+                    Transaction transaction = mapToTransactionWithoutBalance(txnData, accountId, connection);
+                    if (transaction != null) {
+                        newTransactions.add(transaction);
                     }
                 }
             }
@@ -110,19 +133,92 @@ public class TransactionService {
 
         if (transactions.containsKey("pending")) {
             for (Map<String, Object> txnData : transactions.get("pending")) {
-                Transaction transaction = mapToTransaction(txnData, accountId, connection);
-                if (transaction != null) {
-                    if (transactionRepository.findByTransactionId(transaction.getTransactionId()).isEmpty()) {
-                        savedTransactions.add(transactionRepository.save(transaction));
+                String transactionId = (String) txnData.get("transactionId");
+                if (transactionId != null && !existingTransactionIds.contains(transactionId)) {
+                    Transaction transaction = mapToTransactionWithoutBalance(txnData, accountId, connection);
+                    if (transaction != null) {
+                        newTransactions.add(transaction);
                     }
                 }
+            }
+        }
+
+        newTransactions.sort(Comparator.comparing(Transaction::getTransactionDate).reversed());
+
+        BigDecimal currentBalance = getCurrentBalanceForAccount(accountId);
+
+        for (Transaction transaction : newTransactions) {
+            try {
+                currentBalance = calculateNewBalance(currentBalance, transaction);
+                transaction.setBalanceAfterTransaction(currentBalance);
+                savedTransactions.add(transactionRepository.save(transaction));
+            } catch (Exception e) {
+                logger.warning("Failed to save transaction " + transaction.getTransactionId() +
+                        ": " + e.getMessage() + ". Possibly already exists.");
             }
         }
 
         return savedTransactions;
     }
 
-    private Transaction mapToTransaction(Map<String, Object> txnData, String accountId, BankConnection connection) {
+    private BigDecimal getCurrentBalanceForAccount(String accountId) {
+        List<Transaction> recentTransactions = transactionRepository.findByAccountIdAndTransactionDateBetween(
+                accountId,
+                LocalDate.now().minusYears(1),
+                LocalDate.now()
+        );
+
+        if (!recentTransactions.isEmpty()) {
+            recentTransactions.sort(Comparator.comparing(Transaction::getTransactionDate).reversed());
+            Transaction mostRecent = recentTransactions.getFirst();
+
+            if (mostRecent.getBalanceAfterTransaction() != null) {
+                return mostRecent.getBalanceAfterTransaction();
+            }
+        }
+
+        return getCurrentBalanceFromApi(accountId);
+    }
+
+    private BigDecimal getCurrentBalanceFromApi(String accountId) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(authService.getAccessToken());
+
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    "https://bankaccountdata.gocardless.com/api/v2/accounts/" + accountId + "/balances/",
+                    HttpMethod.GET,
+                    new HttpEntity<>(headers),
+                    Map.class
+            );
+
+            Map<String, Object> responseBody = response.getBody();
+            List<Map<String, Object>> balances = (List<Map<String, Object>>) responseBody.get("balances");
+
+            if (balances != null && !balances.isEmpty()) {
+                for (Map<String, Object> balance : balances) {
+                    Map<String, Object> balanceAmount = (Map<String, Object>) balance.get("balanceAmount");
+                    if (balanceAmount != null) {
+                        String amountStr = (String) balanceAmount.get("amount");
+                        return new BigDecimal(amountStr);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.warning("Failed to fetch current balance for account: " + accountId + ". Error: " + e.getMessage());
+        }
+
+        return BigDecimal.ZERO;
+    }
+
+    private BigDecimal calculateNewBalance(BigDecimal currentBalance, Transaction transaction) {
+        return switch (transaction.getTransactionType()) {
+            case CREDIT -> currentBalance.add(transaction.getAmount());
+            case DEBIT -> currentBalance.subtract(transaction.getAmount());
+        };
+    }
+
+    private Transaction mapToTransactionWithoutBalance(Map<String, Object> txnData, String accountId, BankConnection connection) {
         try {
             Map<String, Object> transactionAmount = (Map<String, Object>) txnData.get("transactionAmount");
             String amountStr = transactionAmount != null ? (String) transactionAmount.get("amount") : "0.00";
@@ -154,14 +250,6 @@ public class TransactionService {
             String bankTransactionCode = (String) txnData.get("bankTransactionCode");
             String proprietaryCode = (String) txnData.get("proprietaryBankTransactionCode");
 
-            BigDecimal balanceAfter = null;
-            if (txnData.containsKey("balanceAfterTransaction")) {
-                Map<String, Object> balanceAfterMap = (Map<String, Object>) txnData.get("balanceAfterTransaction");
-                if (balanceAfterMap != null && balanceAfterMap.get("amount") != null) {
-                    balanceAfter = new BigDecimal((String) balanceAfterMap.get("amount"));
-                }
-            }
-
             return Transaction.builder()
                     .transactionId((String) txnData.get("transactionId"))
                     .accountId(accountId)
@@ -179,7 +267,7 @@ public class TransactionService {
                     .transactionType(type)
                     .transactionCode(bankTransactionCode)
                     .proprietaryBankTransactionCode(proprietaryCode)
-                    .balanceAfterTransaction(balanceAfter)
+                    .balanceAfterTransaction(null)
                     .build();
 
         } catch (Exception e) {
