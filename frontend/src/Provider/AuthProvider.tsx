@@ -1,6 +1,5 @@
 import React, {type ReactNode, useEffect, useState} from "react";
 import {AuthContext, type AuthContextType, type User} from "../Context/AuthContext.tsx";
-import UseAxios from "../hooks/UseAxios";
 import axios from "axios";
 
 interface AuthProviderProps {
@@ -10,7 +9,6 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const api = UseAxios();
 
     const getTokens = () => {
         const accessToken = localStorage.getItem('accessToken');
@@ -33,23 +31,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.removeItem('refreshToken');
     };
 
-
-    const verifyUser = async () => {
-        try {
-            const response = await api.get('/api/auth/me');
-            setUser(response.data);
-        } catch (error) {
-            console.error('Error verifying user:', error);
-            clearTokens();
-            setUser(null);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const login = async (username: string, password: string) => {
         try {
-            console.log('Attempting to login with:', username, password);
             const response = await axios.post('http://localhost:8080/api/auth/login', {
                 username,
                 password
