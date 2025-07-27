@@ -41,9 +41,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const { accessToken, refreshToken } = response.data;
             setTokens(accessToken, refreshToken);
             setIsAuthenticated(true);
-        } catch (error) {
+        } catch (error : unknown) {
             console.error('Login error:', error);
-            if (error.response?.data?.message) {
+            if (axios.isAxiosError(error) && error.response?.data?.message) {
                 throw new Error(error.response.data.message);
             }
             throw new Error('Login failed');
@@ -67,9 +67,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 throw new Error('Registration failed');
             }
 
-        } catch (error) {
+        } catch (error : unknown) {
             console.error('Registration error:', error);
-            if (error.response?.data?.message) {
+            if (axios.isAxiosError(error) && error.response?.data?.message) {
                 throw new Error(error.response.data.message);
             }
             throw new Error('Registration failed');
