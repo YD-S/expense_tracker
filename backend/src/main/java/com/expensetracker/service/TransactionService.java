@@ -17,15 +17,13 @@ import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Logger;
 
 @Service
 @RequiredArgsConstructor
 public class TransactionService {
+
     private final TransactionRepository transactionRepository;
     private final BankConnectionRepository bankConnectionRepository;
     private final UserRepository userRepository;
@@ -80,6 +78,7 @@ public class TransactionService {
         return (List<String>) response.getBody().get("accounts");
     }
 
+    @SuppressWarnings("unchecked")
     private List<Transaction> fetchTransactionsForAccount(String accountId, BankConnection connection) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(authService.getAccessToken());
@@ -92,28 +91,23 @@ public class TransactionService {
         );
 
         Map<String, Object> responseBody = response.getBody();
-        Map<String, List<Map<String, Object>>> transactions = (Map<String, List<Map<String, Object>>>) responseBody.get("transactions");
+        Map<String, List<Map<String, Object>>> transactions =
+                (Map<String, List<Map<String, Object>>>) responseBody.get("transactions");
 
         List<Transaction> savedTransactions = new ArrayList<>();
         List<Transaction> newTransactions = new ArrayList<>();
 
         List<String> allTransactionIds = new ArrayList<>();
-
         if (transactions.containsKey("booked")) {
             for (Map<String, Object> txnData : transactions.get("booked")) {
                 String transactionId = (String) txnData.get("transactionId");
-                if (transactionId != null) {
-                    allTransactionIds.add(transactionId);
-                }
+                if (transactionId != null) allTransactionIds.add(transactionId);
             }
         }
-
         if (transactions.containsKey("pending")) {
             for (Map<String, Object> txnData : transactions.get("pending")) {
                 String transactionId = (String) txnData.get("transactionId");
-                if (transactionId != null) {
-                    allTransactionIds.add(transactionId);
-                }
+                if (transactionId != null) allTransactionIds.add(transactionId);
             }
         }
 
@@ -123,61 +117,43 @@ public class TransactionService {
             for (Map<String, Object> txnData : transactions.get("booked")) {
                 String transactionId = (String) txnData.get("transactionId");
                 if (transactionId != null && !existingTransactionIds.contains(transactionId)) {
-                    Transaction transaction = mapToTransactionWithoutBalance(txnData, accountId, connection);
-                    if (transaction != null) {
-                        newTransactions.add(transaction);
-                    }
+                    Transaction txn = mapToTransactionWithoutBalance(txnData, accountId, connection);
+                    if (txn != null) newTransactions.add(txn);
                 }
             }
         }
-
         if (transactions.containsKey("pending")) {
             for (Map<String, Object> txnData : transactions.get("pending")) {
                 String transactionId = (String) txnData.get("transactionId");
                 if (transactionId != null && !existingTransactionIds.contains(transactionId)) {
-                    Transaction transaction = mapToTransactionWithoutBalance(txnData, accountId, connection);
-                    if (transaction != null) {
-                        newTransactions.add(transaction);
-                    }
+                    Transaction txn = mapToTransactionWithoutBalance(txnData, accountId, connection);
+                    if (txn != null) newTransactions.add(txn);
                 }
             }
         }
 
         newTransactions.sort(Comparator.comparing(Transaction::getTransactionDate).reversed());
 
-        BigDecimal currentBalance = getCurrentBalanceForAccount(accountId);
+        BigDecimal runningBalance = getCurrentBalanceFromApi(accountId);
 
-        for (Transaction transaction : newTransactions) {
+        for (Transaction txn : newTransactions) {
+            txn.setBalanceAfterTransaction(runningBalance);
+
+            if (txn.getTransactionType() == Transaction.TransactionType.CREDIT) {
+                runningBalance = runningBalance.subtract(txn.getAmount());
+            } else {
+                runningBalance = runningBalance.add(txn.getAmount());
+            }
+
             try {
-                currentBalance = calculateNewBalance(currentBalance, transaction);
-                transaction.setBalanceAfterTransaction(currentBalance);
-                savedTransactions.add(transactionRepository.save(transaction));
+                savedTransactions.add(transactionRepository.save(txn));
             } catch (Exception e) {
-                logger.warning("Failed to save transaction " + transaction.getTransactionId() +
+                logger.warning("Failed to save transaction " + txn.getTransactionId() +
                         ": " + e.getMessage() + ". Possibly already exists.");
             }
         }
 
         return savedTransactions;
-    }
-
-    private BigDecimal getCurrentBalanceForAccount(String accountId) {
-        List<Transaction> recentTransactions = transactionRepository.findByAccountIdAndTransactionDateBetween(
-                accountId,
-                LocalDate.now().minusYears(1),
-                LocalDate.now()
-        );
-
-        if (!recentTransactions.isEmpty()) {
-            recentTransactions.sort(Comparator.comparing(Transaction::getTransactionDate).reversed());
-            Transaction mostRecent = recentTransactions.getFirst();
-
-            if (mostRecent.getBalanceAfterTransaction() != null) {
-                return mostRecent.getBalanceAfterTransaction();
-            }
-        }
-
-        return getCurrentBalanceFromApi(accountId);
     }
 
     private BigDecimal getCurrentBalanceFromApi(String accountId) {
@@ -192,7 +168,7 @@ public class TransactionService {
                     Map.class
             );
 
-            Map<String, Object> responseBody = response.getBody();
+            Map responseBody = response.getBody();
             List<Map<String, Object>> balances = (List<Map<String, Object>>) responseBody.get("balances");
 
             if (balances != null && !balances.isEmpty()) {
@@ -211,13 +187,6 @@ public class TransactionService {
         return BigDecimal.ZERO;
     }
 
-    private BigDecimal calculateNewBalance(BigDecimal currentBalance, Transaction transaction) {
-        return switch (transaction.getTransactionType()) {
-            case CREDIT -> currentBalance.add(transaction.getAmount());
-            case DEBIT -> currentBalance.subtract(transaction.getAmount());
-        };
-    }
-
     private Transaction mapToTransactionWithoutBalance(Map<String, Object> txnData, String accountId, BankConnection connection) {
         try {
             Map<String, Object> transactionAmount = (Map<String, Object>) txnData.get("transactionAmount");
@@ -228,6 +197,8 @@ public class TransactionService {
             Transaction.TransactionType type = amount.compareTo(BigDecimal.ZERO) >= 0
                     ? Transaction.TransactionType.CREDIT
                     : Transaction.TransactionType.DEBIT;
+
+            BigDecimal absAmount = amount.abs();
 
             String bookingDateStr = (String) txnData.get("bookingDate");
             String valueDateStr = (String) txnData.get("valueDate");
@@ -254,7 +225,7 @@ public class TransactionService {
                     .transactionId((String) txnData.get("transactionId"))
                     .accountId(accountId)
                     .bankConnection(connection)
-                    .amount(amount.abs())
+                    .amount(absAmount)
                     .currency(currency)
                     .description((String) txnData.get("remittanceInformationUnstructured"))
                     .transactionDate(transactionDate)
