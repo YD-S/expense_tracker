@@ -1,15 +1,38 @@
-import {useMemo} from 'react';
-import axios, {type AxiosInstance} from 'axios';
+import { useMemo } from 'react';
+import axios, { type AxiosInstance } from 'axios';
+
+const getBaseURL = () => {
+    if (import.meta.env.DEV) {
+        return 'http://localhost:8080';
+    }
+    return 'http://backend:8080';
+};
+
+const refreshAccessToken = async (): Promise<string | null> => {
+    try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) return null;
+
+        const response = await axios.post(`${getBaseURL()}/api/auth/refresh`, {
+            refreshToken,
+        });
+
+        if (response.data) {
+            localStorage.setItem('accessToken', response.data.accessToken);
+            localStorage.setItem('refreshToken', response.data.refreshToken);
+            return response.data.accessToken;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error refreshing token:', error);
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        return null;
+    }
+};
 
 const UseAxios = (): AxiosInstance => {
     return useMemo(() => {
-        const getBaseURL = () => {
-            if (import.meta.env.DEV) {
-                return 'http://localhost:8080';
-            }
-            return 'http://backend:8080';
-        };
-
         const instance = axios.create({
             baseURL: getBaseURL(),
             timeout: 10000,
@@ -53,29 +76,6 @@ const UseAxios = (): AxiosInstance => {
 
         return instance;
     }, []);
-};
-
-const refreshAccessToken = async (): Promise<string | null> => {
-    try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) return null;
-
-        const response = await axios.post(`${getBaseURL()}/api/auth/refresh`, {
-            refreshToken
-        });
-
-        if (response.data) {
-            localStorage.setItem('accessToken', response.data.accessToken);
-            localStorage.setItem('refreshToken', response.data.refreshToken);
-            return response.data.accessToken;
-        }
-        return null;
-    } catch (error) {
-        console.error('Error refreshing token:', error);
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        return null;
-    }
 };
 
 export default UseAxios;
